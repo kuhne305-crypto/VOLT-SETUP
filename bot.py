@@ -38,7 +38,10 @@ STAFF_ROLE_NAMES = [n.strip() for n in os.getenv("STAFF_ROLE_NAMES", "Admin,Mode
 HONEYPOT_CHANNEL_NAME = os.getenv("HONEYPOT_CHANNEL_NAME", "nicht-schreiben")
 
 intents = discord.Intents.default()
-intents.members = True
+# Kein "members"-Intent nötig: VOLT SETUP legt nur Rollen/Kanäle an und
+# verarbeitet den Verify-Button über interaction.user (kommt schon als
+# vollständiges Member-Objekt mit) - das braucht keinen privilegierten Intent
+# im Discord Developer Portal.
 
 
 class VerifyView(discord.ui.View):
