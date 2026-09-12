@@ -213,7 +213,10 @@ async def build_server_structure(guild: discord.Guild) -> discord.TextChannel:
         existing = discord.utils.get(guild.text_channels, name=full_name)
         if existing:
             return existing
-        return await guild.create_text_channel(full_name, category=category, overwrites=overwrites, topic=topic)
+        kwargs = {"category": category, "topic": topic}
+        if overwrites is not None:
+            kwargs["overwrites"] = overwrites
+        return await guild.create_text_channel(full_name, **kwargs)
 
     # Regeln-Channel steht bewusst ganz oben in WILLKOMMEN, noch vor
     # "willkommen" - read-only für alle, nur Staff kann posten.
@@ -406,7 +409,9 @@ async def add_category(interaction: discord.Interaction, name: str, staff_only: 
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             **{r: discord.PermissionOverwrite(view_channel=True, send_messages=True) for r in staff_roles},
         }
-    category = await guild.create_category(name, overwrites=overwrites, reason=f"/add-category von {interaction.user}")
+    category = await guild.create_category(
+        name, reason=f"/add-category von {interaction.user}", **({"overwrites": overwrites} if overwrites else {})
+    )
     await interaction.response.send_message(f"✅ Kategorie **{category.name}** erstellt{' (nur Staff sichtbar)' if staff_only else ''}.", ephemeral=True)
 
 
@@ -430,7 +435,9 @@ async def add_channel(interaction: discord.Interaction, name: str, kategorie: st
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             **{r: discord.PermissionOverwrite(view_channel=True, send_messages=True) for r in staff_roles},
         }
-    channel = await guild.create_text_channel(name, category=category, overwrites=overwrites, reason=f"/add-channel von {interaction.user}")
+    channel = await guild.create_text_channel(
+        name, category=category, reason=f"/add-channel von {interaction.user}", **({"overwrites": overwrites} if overwrites else {})
+    )
     await interaction.response.send_message(f"✅ Kanal {channel.mention} erstellt{' (nur Staff sichtbar)' if staff_only else ''}.", ephemeral=True)
 
 
