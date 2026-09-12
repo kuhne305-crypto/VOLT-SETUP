@@ -72,6 +72,25 @@ def channel_name(emoji: str, name: str) -> str:
     return f"{emoji}│{name}"
 
 
+def category_name(emoji: str, label: str) -> str:
+    """Kategorie-Name im Trennstrich-Look (z.B. '───── 📌 INFOS ─────'), damit
+    die Kategorien im Kanal-Menü klar abgesetzt und nicht 'nackt' wirken."""
+    return f"───── {emoji} {label} ─────"
+
+
+# ---------------------------------------------------------------------------
+# SERVERINFO - gesperrte Voice-Kanäle, deren Name reine Live-Statistik ist
+# (niemand kann joinen, sie dienen nur als Anzeige - wie bei bjarne.work).
+# Discord erlaubt max. 2 Umbenennungen pro Kanal alle 10 Minuten, deshalb
+# aktualisiert der Bot diese Kanäle nur alle 10 Minuten (siehe bot.py).
+# ---------------------------------------------------------------------------
+SERVERINFO_CATEGORY = category_name("📊", "SERVERINFO")
+MEMBERS_LABEL = "👥 Mitglieder"
+STATUS_LABEL = "🟢 Status"
+RATING_LABEL = "⭐ Bewertungen"
+RATING_PLACEHOLDER = "bald verfügbar"
+
+
 def banner_file(path: str) -> discord.File:
     return discord.File(path, filename=os.path.basename(path))
 
