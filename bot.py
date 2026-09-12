@@ -20,7 +20,7 @@ import logging
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 import branding
@@ -89,6 +89,28 @@ def is_admin():
 async def on_ready():
     log.info("VOLT SETUP eingeloggt als %s", bot.user)
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="über die Serverstruktur ⚡"))
+    if not update_serverinfo.is_running():
+        update_serverinfo.start()
+
+
+@tasks.loop(minutes=10)
+async def update_serverinfo():
+    """Hält die SERVERINFO-Stat-Kanäle aktuell. Läuft alle 10 Minuten, weil
+    Discord Kanal-Umbenennungen auf 2x/10min pro Kanal begrenzt (rate-limited).
+    Legt nichts neu an - das übernimmt /setup; hier wird nur der bestehende
+    Kanalname aktualisiert, falls sich der Wert geändert hat."""
+    for guild in bot.guilds:
+        category = discord.utils.get(guild.categories, name=branding.SERVERINFO_CATEGORY)
+        if category is None:
+            continue
+        members_channel = discord.utils.find(lambda c: c.name.startswith(branding.MEMBERS_LABEL), category.voice_channels)
+        if members_channel:
+            desired = f"{branding.MEMBERS_LABEL}: {guild.member_count}"
+            if members_channel.name != desired:
+                try:
+                    await members_channel.edit(name=desired, reason="VOLT Setup: Serverinfo-Update")
+                except discord.HTTPException:
+                    log.warning("Konnte Mitglieder-Stat-Kanal nicht aktualisieren (Rate-Limit?)")
 
 
 async def ensure_log_channel(guild: discord.Guild) -> discord.TextChannel:
@@ -163,11 +185,28 @@ async def build_server_structure(guild: discord.Guild) -> discord.TextChannel:
     log_channel = await ensure_log_channel(guild)
     await log_channel.edit(overwrites=staff_only_overwrites)
 
-    info_cat = discord.utils.get(guild.categories, name="📌 INFOS") or await guild.create_category("📌 INFOS")
-    welcome_cat = discord.utils.get(guild.categories, name="👋 WILLKOMMEN") or await guild.create_category("👋 WILLKOMMEN")
-    shop_cat = discord.utils.get(guild.categories, name="🛒 SHOP") or await guild.create_category("🛒 SHOP")
-    ticket_cat = discord.utils.get(guild.categories, name="🎫 TICKETS") or await guild.create_category("🎫 TICKETS")
-    team_cat = discord.utils.get(guild.categories, name="🛠️ TEAM-INTERN") or await guild.create_category("🛠️ TEAM-INTERN", overwrites=staff_only_overwrites)
+    serverinfo_cat = discord.utils.get(guild.categories, name=branding.SERVERINFO_CATEGORY) or await guild.create_category(branding.SERVERINFO_CATEGORY)
+    serverinfo_overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=True, connect=False, speak=False),
+        **{r: discord.PermissionOverwrite(view_channel=True, connect=True) for r in staff_roles},
+    }
+
+    async def ensure_stat_voice(label: str, value: str, category):
+        existing = discord.utils.find(lambda c: c.name.startswith(label), guild.voice_channels)
+        full_name = f"{label}: {value}"
+        if existing:
+            return existing
+        return await guild.create_voice_channel(full_name, category=category, overwrites=serverinfo_overwrites)
+
+    await ensure_stat_voice(branding.MEMBERS_LABEL, str(guild.member_count), serverinfo_cat)
+    await ensure_stat_voice(branding.STATUS_LABEL, "Online", serverinfo_cat)
+    await ensure_stat_voice(branding.RATING_LABEL, branding.RATING_PLACEHOLDER, serverinfo_cat)
+
+    info_cat = discord.utils.get(guild.categories, name=branding.category_name("📌", "INFOS")) or await guild.create_category(branding.category_name("📌", "INFOS"))
+    welcome_cat = discord.utils.get(guild.categories, name=branding.category_name("👋", "WILLKOMMEN")) or await guild.create_category(branding.category_name("👋", "WILLKOMMEN"))
+    shop_cat = discord.utils.get(guild.categories, name=branding.category_name("🛒", "SHOP")) or await guild.create_category(branding.category_name("🛒", "SHOP"))
+    ticket_cat = discord.utils.get(guild.categories, name=branding.category_name("🎫", "TICKETS")) or await guild.create_category(branding.category_name("🎫", "TICKETS"))
+    team_cat = discord.utils.get(guild.categories, name=branding.category_name("🛠️", "TEAM-INTERN")) or await guild.create_category(branding.category_name("🛠️", "TEAM-INTERN"), overwrites=staff_only_overwrites)
 
     async def ensure_channel(emoji, name, category, overwrites=None, topic=None):
         full_name = branding.channel_name(emoji, name)
