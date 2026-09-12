@@ -24,6 +24,53 @@ ADMIN_FOOTER = "VOLT MOD • Server Protection. Full Control."
 TICKETS_FOOTER = "VOLT TICKETS • Tickets. Orders. Done right."
 MAIN_FOOTER = "VOLT Discord Solutions"
 
+# ---------------------------------------------------------------------------
+# Rollen-Farbschema
+#
+# Reihenfolge = Hierarchie (oben = höchste Rolle). Jede Rolle bekommt eine
+# eigene, klar unterscheidbare Farbe + ein Emoji-Präfix, damit auf einen
+# Blick erkennbar ist "wer wie wo" steht. Der volle Rollenname ist
+# f"{emoji} {basisname}" (z.B. "👑 Admin").
+#
+# WICHTIG für VOLT MOD (separates Repo): falls dort Rollen per exaktem
+# Namensvergleich gesucht werden ("Admin" statt "👑 Admin"), muss die
+# Suche dort auf "endet mit Basisname" umgestellt werden - siehe
+# resolve_role_by_base() unten, das kann 1:1 übernommen werden.
+# ---------------------------------------------------------------------------
+ROLE_CONFIG = [
+    # (Basisname,   Emoji, Farbe (RGB),                 hoist=separat in Mitgliederliste anzeigen)
+    ("Admin",       "👑",  discord.Color.from_rgb(230, 30, 30),   True),
+    ("Moderator",   "🛡️", discord.Color.from_rgb(255, 140, 26),  True),
+    ("Supporter",   "🎧",  discord.Color.from_rgb(255, 205, 60),  True),
+    ("Kunde",       "🛍️", discord.Color.from_rgb(66, 165, 245),  False),
+    ("Verified",    "✅",  discord.Color.from_rgb(87, 242, 135),  False),
+]
+
+
+def full_role_name(base_name: str) -> str:
+    for base, emoji, _color, _hoist in ROLE_CONFIG:
+        if base == base_name:
+            return f"{emoji} {base}"
+    return base_name
+
+
+def resolve_role_by_base(guild: discord.Guild, base_name: str):
+    """Findet eine Rolle egal ob sie noch den alten reinen Namen ("Admin")
+    oder den neuen Emoji-Namen ("👑 Admin") trägt. So bricht nichts, wenn
+    Rollen manuell umbenannt wurden oder noch aus einem alten Setup stammen."""
+    exact = discord.utils.get(guild.roles, name=base_name)
+    if exact:
+        return exact
+    return discord.utils.find(
+        lambda r: r.name == base_name or r.name.rsplit(" ", 1)[-1] == base_name,
+        guild.roles,
+    )
+
+
+def channel_name(emoji: str, name: str) -> str:
+    """Einheitliches, gut erkennbares Channel-Namensschema: Emoji + Trenner + Name."""
+    return f"{emoji}│{name}"
+
 
 def banner_file(path: str) -> discord.File:
     return discord.File(path, filename=os.path.basename(path))
